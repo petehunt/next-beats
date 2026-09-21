@@ -13,7 +13,8 @@
     "binaryName": "beats-native"
   },
   "scripts": {
-    "build": "napi build --platform"
+    "build": "napi build --platform",
+    "build:release": "napi build --platform --release"
   },
   "devDependencies": {
     "@napi-rs/cli": "^3.4.1"

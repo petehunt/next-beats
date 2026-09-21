@@ -34,6 +34,12 @@ pnpm run prisma.seed
 pnpm run dev
 ```
 
+`pnpm dev` runs a Rust front door on port 3000 and Next on an internal port.
+Use `pnpm dev:next` when you specifically want to expose Next directly; the
+Next proxy and play route still call the same Rust crate through N-API. See the
+[Rust front-door architecture](docs/rust-front-door.md) for self-hosted and
+Vercel deployment modes.
+
 To regenerate a compact track, playlist, and genre cover from the current database:
 
 ```bash
@@ -65,6 +71,7 @@ pnpm test:e2e
 - **[React 19](https://react.dev/)** with React Compiler: Suspense, View Transitions, `useOptimistic`
 - **[TypeScript](https://www.typescriptlang.org/)** and **[Tailwind CSS v4](https://tailwindcss.com/)**
 - **[Prisma 7](https://www.prisma.io/)** on PostgreSQL
+- **[Rust](https://www.rust-lang.org/)** with Axum, SQLx, and napi-rs for the front door and shared server logic
 - **[vGPU](https://github.com/vercel-labs/vgpu)** for animated WebGPU cover art and pre-rendered first frames
 - **[Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)** for procedural per-genre synthesis
 

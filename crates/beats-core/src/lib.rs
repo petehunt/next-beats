@@ -65,6 +65,13 @@ struct PlayBody {
 }
 
 impl App {
+    pub fn connect_lazy(database_url: &str) -> Result<Self, sqlx::Error> {
+        let pool = PgPoolOptions::new()
+            .max_connections(10)
+            .connect_lazy(database_url)?;
+        Ok(Self { pool })
+    }
+
     pub async fn connect(database_url: &str) -> Result<Self, sqlx::Error> {
         let pool = PgPoolOptions::new()
             .max_connections(10)

@@ -36,7 +36,7 @@ pub async fn handle_play(
     body: String,
 ) -> napi::Result<PlayResult> {
     let app = APP
-        .get_or_try_init(|| async { beats_core::App::connect(&database_url).await })
+        .get_or_try_init(|| async { beats_core::App::connect_lazy(&database_url) })
         .await
         .map_err(|error| napi::Error::from_reason(error.to_string()))?;
     let outcome = app
