@@ -1,16 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
-
-const SESSION_COOKIE = 'beats-user';
+import { rust } from '@/lib/rust';
 
 export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const isAuthed = request.cookies.has(SESSION_COOKIE);
-
-  // Auth gate: redirect unauthed page visits to /login.
-  // /login itself is excluded so the form can render.
-  if (pathname !== '/login' && !isAuthed) {
+  const decision = rust.proxyDecision(
+    request.nextUrl.pathname,
+    request.headers.get('cookie') ?? undefined,
+  );
+  if (decision.redirectPathname) {
     const url = request.nextUrl.clone();
-    url.pathname = '/login';
+    url.pathname = decision.redirectPathname;
     return NextResponse.redirect(url);
   }
 

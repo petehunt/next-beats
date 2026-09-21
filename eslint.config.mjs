@@ -11,6 +11,8 @@ export default defineConfig([
     '.next-cover-studio/**',
     '.pnpm-store/**',
     '.vercel/**',
+    'crates/beats-node/index.d.ts',
+    'crates/beats-node/index.js',
     'generated/**',
     'node_modules/**',
     'playwright-report/**',

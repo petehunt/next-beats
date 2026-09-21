@@ -10,3 +10,9 @@
 export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-wasip1'
 
 export declare function hello(name: string): string
+
+export declare function proxyDecision(pathname: string, cookieHeader?: string | undefined | null): ProxyResult
+
+export interface ProxyResult {
+  redirectPathname?: string
+}

@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
   },
   partialPrefetching: true,
   reactCompiler: true,
+  serverExternalPackages: ['@next-beats/native'],
   turbopack: {
     rules: {
       '*.wgsl': {
