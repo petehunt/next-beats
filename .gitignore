@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -22,6 +23,10 @@ playwright-report
 
 # production
 /build
+/target
+
+# locally-built Rust native addons
+crates/beats-node/*.node
 
 # misc
 .DS_Store

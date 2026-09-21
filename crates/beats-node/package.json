@@ -1,0 +1,21 @@
+{
+  "name": "@next-beats/native",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.d.ts",
+    "index.js",
+    "*.node"
+  ],
+  "napi": {
+    "binaryName": "beats-native"
+  },
+  "scripts": {
+    "build": "napi build --platform"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.4.1"
+  }
+}

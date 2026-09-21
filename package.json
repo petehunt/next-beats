@@ -13,6 +13,7 @@
     "format": "prettier --write .",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "native:build": "pnpm --filter @next-beats/native build",
     "prisma.push": "prisma db push",
     "prisma.seed": "prisma db seed",
     "prisma.studio": "prisma studio",
@@ -20,6 +21,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@next-beats/native": "workspace:*",
     "@ai-sdk/gateway": "4.0.86",
     "@ariakit/react": "^0.4.28",
     "@prisma/adapter-better-sqlite3": "^7.8.0",

@@ -1,5 +1,6 @@
 packages:
   - .
+  - crates/beats-node
 
 minimumReleaseAge: 2880 # 48 hrs
 minimumReleaseAgeExclude:
