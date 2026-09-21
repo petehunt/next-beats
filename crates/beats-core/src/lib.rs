@@ -5,6 +5,9 @@ pub fn hello(name: &str) -> String {
 
 pub const SESSION_COOKIE: &str = "beats-user";
 
+use serde::Deserialize;
+use sqlx::{PgPool, postgres::PgPoolOptions};
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum ProxyDecision {
     Continue,
@@ -29,6 +32,130 @@ fn has_cookie(header: &str, name: &str) -> bool {
             .split_once('=')
             .is_some_and(|(cookie_name, value)| cookie_name == name && !value.is_empty())
     })
+}
+
+fn cookie_value<'a>(header: &'a str, name: &str) -> Option<&'a str> {
+    header.split(';').find_map(|cookie| {
+        let (cookie_name, value) = cookie.trim().split_once('=')?;
+        (cookie_name == name && !value.is_empty()).then_some(value)
+    })
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct PlayOutcome {
+    pub status: u16,
+    pub revalidation_tags: Vec<String>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PlayError {
+    #[error("database error: {0}")]
+    Database(#[from] sqlx::Error),
+}
+
+#[derive(Clone)]
+pub struct App {
+    pool: PgPool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PlayBody {
+    track_id: String,
+}
+
+impl App {
+    pub async fn connect(database_url: &str) -> Result<Self, sqlx::Error> {
+        let pool = PgPoolOptions::new()
+            .max_connections(10)
+            .connect(database_url)
+            .await?;
+        Ok(Self { pool })
+    }
+
+    pub fn from_pool(pool: PgPool) -> Self {
+        Self { pool }
+    }
+
+    /// Handle the complete play mutation. The caller only adapts the outcome to
+    /// its HTTP/runtime response and applies the returned Next cache tags.
+    pub async fn handle_play(
+        &self,
+        cookie_header: Option<&str>,
+        body: &[u8],
+    ) -> Result<PlayOutcome, PlayError> {
+        let Some(user_id) = cookie_header.and_then(|header| cookie_value(header, SESSION_COOKIE))
+        else {
+            return Ok(PlayOutcome {
+                status: 401,
+                revalidation_tags: vec![],
+            });
+        };
+
+        let user_exists: bool =
+            sqlx::query_scalar(r#"SELECT EXISTS(SELECT 1 FROM "User" WHERE "id" = $1)"#)
+                .bind(user_id)
+                .fetch_one(&self.pool)
+                .await?;
+        if !user_exists {
+            return Ok(PlayOutcome {
+                status: 401,
+                revalidation_tags: vec![],
+            });
+        }
+
+        let Ok(body) = serde_json::from_slice::<PlayBody>(body) else {
+            return Ok(PlayOutcome {
+                status: 400,
+                revalidation_tags: vec![],
+            });
+        };
+        if body.track_id.is_empty() {
+            return Ok(PlayOutcome {
+                status: 400,
+                revalidation_tags: vec![],
+            });
+        }
+
+        let mut transaction = self.pool.begin().await?;
+        let updated =
+            sqlx::query(r#"UPDATE "Track" SET "playCount" = "playCount" + 1 WHERE "id" = $1"#)
+                .bind(&body.track_id)
+                .execute(&mut *transaction)
+                .await?;
+        if updated.rows_affected() == 0 {
+            transaction.rollback().await?;
+            return Ok(PlayOutcome {
+                status: 404,
+                revalidation_tags: vec![],
+            });
+        }
+
+        sqlx::query(
+            r#"
+            INSERT INTO "UserTrackPlay" ("userId", "trackId", "lastPlayedAt")
+            VALUES ($1, $2, CURRENT_TIMESTAMP)
+            ON CONFLICT ("userId", "trackId")
+            DO UPDATE SET "lastPlayedAt" = CURRENT_TIMESTAMP
+            "#,
+        )
+        .bind(user_id)
+        .bind(&body.track_id)
+        .execute(&mut *transaction)
+        .await?;
+        transaction.commit().await?;
+
+        Ok(PlayOutcome {
+            status: 204,
+            revalidation_tags: play_revalidation_tags(user_id),
+        })
+    }
+}
+
+pub fn play_revalidation_tags(user_id: &str) -> Vec<String> {
+    ["recently-played", "discover", "recommendations"]
+        .map(|prefix| format!("{prefix}:{user_id}"))
+        .into()
 }
 
 #[cfg(test)]
@@ -63,5 +190,17 @@ mod tests {
             proxy_decision("/", Some("not-beats-user=user-1; beats-user=")),
             ProxyDecision::Redirect { .. }
         ));
+    }
+
+    #[test]
+    fn derives_play_cache_tags() {
+        assert_eq!(
+            play_revalidation_tags("user-1"),
+            [
+                "recently-played:user-1",
+                "discover:user-1",
+                "recommendations:user-1",
+            ]
+        );
     }
 }

@@ -9,9 +9,9 @@ crate-type = ["cdylib"]
 
 [dependencies]
 beats-core = { path = "../beats-core" }
-napi = "3.12.7"
+napi = { version = "3.12.7", features = ["async"] }
 napi-derive = "3.6.8"
+tokio = { version = "1.49.0", features = ["sync"] }
 
 [build-dependencies]
 napi-build = "2.2.4"
-

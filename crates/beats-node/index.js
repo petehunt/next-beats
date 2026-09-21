@@ -778,5 +778,6 @@ function __napiStampBindingTarget(exportsObject, target) {
 // linked import resolves to `undefined`.
 module.exports.__napiBindingTarget = __napiStampBindingTarget(nativeBinding, __napiLoadedBindingTarget)
 module.exports = nativeBinding
+module.exports.handlePlay = nativeBinding.handlePlay
 module.exports.hello = nativeBinding.hello
 module.exports.proxyDecision = nativeBinding.proxyDecision
