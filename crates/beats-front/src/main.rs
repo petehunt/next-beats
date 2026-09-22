@@ -5,6 +5,7 @@ use axum::{
     body::{Body, to_bytes},
     extract::{ConnectInfo, Request, State},
     http::{HeaderMap, HeaderName, HeaderValue, StatusCode, Uri, header},
+    middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{get, get_service, post},
 };
@@ -66,6 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ServeDir::new("public/covers").append_index_html_on_directories(false),
         )
         .route_service("/logo.svg", get_service(ServeFile::new("public/logo.svg")))
+        .route_layer(middleware::from_fn(authenticate_static))
         .layer(immutable);
     let router = Router::new()
         .route("/_rust/health", get(health))
@@ -116,6 +118,14 @@ async fn shutdown_signal() {
 
 async fn health() -> impl IntoResponse {
     (StatusCode::OK, "Hello from Rust!\n")
+}
+
+async fn authenticate_static(request: Request, next: Next) -> Response {
+    if let Some(response) = auth_redirect(&request) {
+        response
+    } else {
+        next.run(request).await
+    }
 }
 
 async fn play(State(state): State<Arc<FrontState>>, request: Request) -> Response {
@@ -171,22 +181,8 @@ async fn proxy_to_next(
     }
 
     if should_auth_gate(request.uri().path()) {
-        let cookie = request
-            .headers()
-            .get(header::COOKIE)
-            .and_then(|value| value.to_str().ok());
-        if let beats_core::ProxyDecision::Redirect { pathname } =
-            beats_core::proxy_decision(request.uri().path(), cookie)
-        {
-            let location = match request.uri().query() {
-                Some(query) => format!("{pathname}?{query}"),
-                None => pathname.to_owned(),
-            };
-            return (
-                StatusCode::TEMPORARY_REDIRECT,
-                [(header::LOCATION, location)],
-            )
-                .into_response();
+        if let Some(response) = auth_redirect(&request) {
+            return response;
         }
     }
 
@@ -197,6 +193,29 @@ async fn proxy_to_next(
             StatusCode::BAD_GATEWAY.into_response()
         }
     }
+}
+
+fn auth_redirect(request: &Request) -> Option<Response> {
+    let cookie = request
+        .headers()
+        .get(header::COOKIE)
+        .and_then(|value| value.to_str().ok());
+    let beats_core::ProxyDecision::Redirect { pathname } =
+        beats_core::proxy_decision(request.uri().path(), cookie)
+    else {
+        return None;
+    };
+    let location = match request.uri().query() {
+        Some(query) => format!("{pathname}?{query}"),
+        None => pathname.to_owned(),
+    };
+    Some(
+        (
+            StatusCode::TEMPORARY_REDIRECT,
+            [(header::LOCATION, location)],
+        )
+            .into_response(),
+    )
 }
 
 fn should_auth_gate(pathname: &str) -> bool {
