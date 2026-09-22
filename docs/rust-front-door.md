@@ -23,7 +23,7 @@ preserves methods, bodies, response streaming, cookies, and forwarding headers.
 
 The play mutation derives its Next cache tags in Rust. When the Rust ingress
 owns the request, it posts those tags to the protected
-`/api/_rust/revalidate` Next adapter. When Next owns the request directly,
+`/api/rust-internal/revalidate` Next adapter. When Next owns the request directly,
 `app/api/play/route.ts` gets the same tags over N-API and applies them locally.
 Only the call to `revalidateTag` is expressed in TypeScript because it is a
 Next runtime capability.
@@ -65,4 +65,3 @@ Adapter (`adapterPath`) that emits a compact routing manifest for
 The `BEATS_NEXT_ORIGIN` boundary is intentionally narrow so that origin proxying
 can be replaced by that entrypoint invoker without changing Rust-owned routes
 or domain logic.
-

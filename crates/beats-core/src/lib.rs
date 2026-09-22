@@ -51,6 +51,8 @@ pub struct PlayOutcome {
 pub enum PlayError {
     #[error("database error: {0}")]
     Database(#[from] sqlx::Error),
+    #[error("track not found")]
+    TrackNotFound,
 }
 
 #[derive(Clone)]
@@ -132,10 +134,7 @@ impl App {
                 .await?;
         if updated.rows_affected() == 0 {
             transaction.rollback().await?;
-            return Ok(PlayOutcome {
-                status: 404,
-                revalidation_tags: vec![],
-            });
+            return Err(PlayError::TrackNotFound);
         }
 
         sqlx::query(

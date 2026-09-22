@@ -162,7 +162,10 @@ async fn play(State(state): State<Arc<FrontState>>, request: Request) -> Respons
 async fn revalidate(state: &FrontState, tags: &[String]) -> Result<(), reqwest::Error> {
     state
         .client
-        .post(format!("{}/api/_rust/revalidate", state.next_origin))
+        .post(format!(
+            "{}/api/rust-internal/revalidate",
+            state.next_origin
+        ))
         .header("x-beats-internal-token", &state.internal_token)
         .json(&RevalidateRequest { tags })
         .send()
@@ -176,7 +179,7 @@ async fn proxy_to_next(
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
     request: Request,
 ) -> Response {
-    if request.uri().path().starts_with("/api/_rust/") {
+    if request.uri().path().starts_with("/api/rust-internal/") {
         return StatusCode::NOT_FOUND.into_response();
     }
 
