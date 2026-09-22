@@ -2,6 +2,9 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  cacheHandlers: {
+    default: require.resolve('./cache-handler.cjs'),
+  },
   experimental: {
     agentFeedback: true,
     inlineCss: true,
@@ -14,6 +17,9 @@ const nextConfig: NextConfig = {
         source: '/covers/:path*',
       },
     ];
+  },
+  outputFileTracingIncludes: {
+    '/*': ['./crates/beats-node/*.node', './crates/beats-node/loader.cjs', './crates/beats-node/package.json'],
   },
   partialPrefetching: true,
   reactCompiler: true,

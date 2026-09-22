@@ -40,6 +40,9 @@ Next proxy and play route still call the same Rust crate through N-API. See the
 [Rust front-door architecture](docs/rust-front-door.md) for self-hosted and
 Vercel deployment modes.
 
+On Vercel, `/api/play` is compiled as a native Rust Function. Apply the Prisma
+schema before deploying so the shared `RustCacheTag` table exists.
+
 To regenerate a compact track, playlist, and genre cover from the current database:
 
 ```bash

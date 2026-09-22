@@ -13,6 +13,7 @@ export default defineConfig([
     '.vercel/**',
     'crates/beats-node/index.d.ts',
     'crates/beats-node/index.js',
+    'crates/beats-node/generated.d.ts',
     'generated/**',
     'node_modules/**',
     'playwright-report/**',
@@ -23,6 +24,10 @@ export default defineConfig([
   ...nextVitals,
   ...nextTypeScript,
   eslintConfigPrettier,
+  {
+    files: ['cache-handler.cjs', 'crates/beats-node/loader.cjs'],
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
   {
     plugins: {
       autofix,

@@ -10,26 +10,17 @@ use axum::{
     routing::{get, get_service, post},
 };
 use reqwest::Client;
-use serde::Serialize;
 use tower_http::{
     services::{ServeDir, ServeFile},
     set_header::SetResponseHeaderLayer,
 };
 
 const MAX_PLAY_BODY_BYTES: usize = 64 * 1024;
-const LOCAL_INTERNAL_TOKEN: &str = "local-development-only";
-
 #[derive(Clone)]
 struct FrontState {
     app: beats_core::App,
     client: Client,
-    internal_token: String,
     next_origin: String,
-}
-
-#[derive(Serialize)]
-struct RevalidateRequest<'a> {
-    tags: &'a [String],
 }
 
 #[tokio::main]
@@ -41,12 +32,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_else(|_| "http://127.0.0.1:3001".to_owned())
         .trim_end_matches('/')
         .to_owned();
-    let internal_token = env::var("BEATS_INTERNAL_TOKEN").unwrap_or_else(|_| {
-        if env::var("NODE_ENV").as_deref() == Ok("production") {
-            panic!("BEATS_INTERNAL_TOKEN is required in production");
-        }
-        LOCAL_INTERNAL_TOKEN.to_owned()
-    });
     let port = env::var("PORT")
         .unwrap_or_else(|_| "3000".to_owned())
         .parse::<u16>()?;
@@ -54,7 +39,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = Arc::new(FrontState {
         app: beats_core::App::connect_lazy(&database_url)?,
         client: Client::builder().build()?,
-        internal_token,
         next_origin,
     });
     let immutable = SetResponseHeaderLayer::overriding(
@@ -89,8 +73,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn load_env() {
+    // Existing process variables win, then .env.local, then .env fills gaps.
+    let _ = dotenvy::from_filename(".env.local");
     let _ = dotenvy::from_filename(".env");
-    let _ = dotenvy::from_filename_override(".env.local");
 }
 
 async fn shutdown_signal() {
@@ -146,32 +131,9 @@ async fn play(State(state): State<Arc<FrontState>>, request: Request) -> Respons
         }
     };
 
-    if !outcome.revalidation_tags.is_empty()
-        && let Err(error) = revalidate(&state, &outcome.revalidation_tags).await
-    {
-        // The mutation already committed. Returning success avoids double-counting
-        // a play if a client retries solely because the cache adapter was down.
-        eprintln!("Next cache revalidation failed: {error}");
-    }
-
     StatusCode::from_u16(outcome.status)
         .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
         .into_response()
-}
-
-async fn revalidate(state: &FrontState, tags: &[String]) -> Result<(), reqwest::Error> {
-    state
-        .client
-        .post(format!(
-            "{}/api/rust-internal/revalidate",
-            state.next_origin
-        ))
-        .header("x-beats-internal-token", &state.internal_token)
-        .json(&RevalidateRequest { tags })
-        .send()
-        .await?
-        .error_for_status()?;
-    Ok(())
 }
 
 async fn proxy_to_next(
@@ -179,10 +141,6 @@ async fn proxy_to_next(
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
     request: Request,
 ) -> Response {
-    if request.uri().path().starts_with("/api/rust-internal/") {
-        return StatusCode::NOT_FOUND.into_response();
-    }
-
     if should_auth_gate(request.uri().path())
         && let Some(response) = auth_redirect(&request)
     {
@@ -240,6 +198,15 @@ async fn forward(
         .get(header::HOST)
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned);
+    let forwarded_for = parts
+        .headers
+        .get("x-forwarded-for")
+        .and_then(|value| value.to_str().ok())
+        .map_or_else(
+            || peer.ip().to_string(),
+            |existing| format!("{existing}, {}", peer.ip()),
+        );
+    let has_forwarded_proto = parts.headers.contains_key("x-forwarded-proto");
     let mut upstream = state.client.request(parts.method, upstream_url);
     for (name, value) in &parts.headers {
         if !is_hop_by_hop(name) {
@@ -250,9 +217,11 @@ async fn forward(
         upstream = upstream.header("x-forwarded-host", host);
     }
     upstream = upstream
-        .header("x-forwarded-for", peer.ip().to_string())
-        .header("x-forwarded-proto", "http")
+        .header("x-forwarded-for", forwarded_for)
         .body(reqwest::Body::wrap_stream(body.into_data_stream()));
+    if !has_forwarded_proto {
+        upstream = upstream.header("x-forwarded-proto", "http");
+    }
 
     let upstream_response = upstream.send().await?;
     let status = upstream_response.status();

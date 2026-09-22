@@ -27,6 +27,8 @@ playwright-report
 
 # locally-built Rust native addons
 crates/beats-node/*.node
+crates/beats-node/index.js
+crates/beats-node/generated.d.ts
 
 # misc
 .DS_Store

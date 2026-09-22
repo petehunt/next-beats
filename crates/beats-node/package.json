@@ -2,19 +2,19 @@
   "name": "@next-beats/native",
   "version": "0.1.0",
   "private": true,
-  "main": "index.js",
+  "main": "loader.cjs",
   "types": "index.d.ts",
   "files": [
     "index.d.ts",
-    "index.js",
+    "loader.cjs",
     "*.node"
   ],
   "napi": {
     "binaryName": "beats-native"
   },
   "scripts": {
-    "build": "napi build --platform",
-    "build:release": "napi build --platform --release"
+    "build": "napi build --platform --no-js --dts generated.d.ts",
+    "build:release": "napi build --platform --no-js --dts generated.d.ts --release"
   },
   "devDependencies": {
     "@napi-rs/cli": "^3.4.1"

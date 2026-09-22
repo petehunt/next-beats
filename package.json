@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "dev": "prisma generate && pnpm native:build && BEATS_INTERNAL_TOKEN=${BEATS_INTERNAL_TOKEN:-local-development-only} concurrently --kill-others-on-fail --names next,rust \"next dev --port 3001\" \"pnpm dev:rust\"",
+    "dev": "prisma generate && pnpm native:build && concurrently --kill-others-on-fail --names next,rust \"next dev --port 3001\" \"pnpm dev:rust\"",
     "dev:next": "pnpm native:build && next dev",
     "dev:rust": "BEATS_NEXT_ORIGIN=${BEATS_NEXT_ORIGIN:-http://127.0.0.1:3001} cargo run -p beats-front",
     "postinstall": "prisma generate && pnpm native:build",
@@ -12,7 +12,7 @@
     "build": "prisma generate && pnpm native:build:release && next build",
     "covers:icons": "tsx scripts/generate-covers.mts",
     "front:build": "cargo build --release -p beats-front",
-    "start": "BEATS_INTERNAL_TOKEN=${BEATS_INTERNAL_TOKEN:-local-development-only} concurrently --kill-others-on-fail --names next,rust \"next start --port 3001\" \"pnpm start:rust\"",
+    "start": "concurrently --kill-others-on-fail --names next,rust \"next start --port 3001\" \"pnpm start:rust\"",
     "start:next": "next start",
     "start:rust": "BEATS_NEXT_ORIGIN=${BEATS_NEXT_ORIGIN:-http://127.0.0.1:3001} cargo run --release -p beats-front",
     "format": "prettier --write .",

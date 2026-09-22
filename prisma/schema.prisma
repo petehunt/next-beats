@@ -87,3 +87,11 @@ model PlaylistTrack {
   @@id([playlistId, trackId])
   @@index([playlistId, position])
 }
+
+// Shared invalidation state lets Rust mutations invalidate Next cache entries
+// without calling back into a Node route.
+model RustCacheTag {
+  tag           String @id
+  revalidatedAt BigInt
+  expireSeconds Int
+}

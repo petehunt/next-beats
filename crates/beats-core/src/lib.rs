@@ -86,8 +86,8 @@ impl App {
         Self { pool }
     }
 
-    /// Handle the complete play mutation. The caller only adapts the outcome to
-    /// its HTTP/runtime response and applies the returned Next cache tags.
+    /// Handle the complete play mutation, including its shared cache-tag
+    /// invalidation. The caller only adapts the outcome to its runtime response.
     pub async fn handle_play(
         &self,
         cookie_header: Option<&str>,
@@ -149,11 +149,39 @@ impl App {
         .bind(&body.track_id)
         .execute(&mut *transaction)
         .await?;
+
+        let revalidation_tags = play_revalidation_tags(user_id);
+        for tag in &revalidation_tags {
+            sqlx::query(
+                r#"
+                INSERT INTO "RustCacheTag" ("tag", "revalidatedAt", "expireSeconds")
+                VALUES (
+                  $1,
+                  (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::bigint,
+                  $2
+                )
+                ON CONFLICT ("tag") DO UPDATE SET
+                  "revalidatedAt" = GREATEST(
+                    "RustCacheTag"."revalidatedAt",
+                    EXCLUDED."revalidatedAt"
+                  ),
+                  "expireSeconds" = CASE
+                    WHEN EXCLUDED."revalidatedAt" >= "RustCacheTag"."revalidatedAt"
+                    THEN EXCLUDED."expireSeconds"
+                    ELSE "RustCacheTag"."expireSeconds"
+                  END
+                "#,
+            )
+            .bind(tag)
+            .bind(31_536_000_i32)
+            .execute(&mut *transaction)
+            .await?;
+        }
         transaction.commit().await?;
 
         Ok(PlayOutcome {
             status: 204,
-            revalidation_tags: play_revalidation_tags(user_id),
+            revalidation_tags,
         })
     }
 }
