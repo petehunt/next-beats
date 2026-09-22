@@ -183,10 +183,10 @@ async fn proxy_to_next(
         return StatusCode::NOT_FOUND.into_response();
     }
 
-    if should_auth_gate(request.uri().path()) {
-        if let Some(response) = auth_redirect(&request) {
-            return response;
-        }
+    if should_auth_gate(request.uri().path())
+        && let Some(response) = auth_redirect(&request)
+    {
+        return response;
     }
 
     match forward(&state, peer, request).await {

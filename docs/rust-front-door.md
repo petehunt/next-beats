@@ -2,11 +2,11 @@
 
 The application has one domain model in `beats-core` and three runtime adapters:
 
-| Adapter | Purpose |
-| --- | --- |
-| `beats-front` | Public HTTP ingress. Handles Rust-native routes and streams every other request to a Next origin. |
-| `beats-node` | N-API bridge for code that runs inside `next dev` or `next start`. |
-| Next route/proxy files | Thin framework adapters for Next request objects and cache APIs. |
+| Adapter                | Purpose                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------- |
+| `beats-front`          | Public HTTP ingress. Handles Rust-native routes and streams every other request to a Next origin. |
+| `beats-node`           | N-API bridge for code that runs inside `next dev` or `next start`.                                |
+| Next route/proxy files | Thin framework adapters for Next request objects and cache APIs.                                  |
 
 ## Request ownership
 

@@ -6,4 +6,3 @@ import type * as NativeBinding from '@next-beats/native';
 const requireFromWorkspace = createRequire(`${process.cwd()}/package.json`);
 
 export const rust = requireFromWorkspace('@next-beats/native') as typeof NativeBinding;
-

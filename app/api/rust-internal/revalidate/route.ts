@@ -4,8 +4,7 @@ const LOCAL_INTERNAL_TOKEN = 'local-development-only';
 
 export async function POST(request: Request) {
   const token =
-    process.env.BEATS_INTERNAL_TOKEN ??
-    (process.env.NODE_ENV === 'development' ? LOCAL_INTERNAL_TOKEN : undefined);
+    process.env.BEATS_INTERNAL_TOKEN ?? (process.env.NODE_ENV === 'development' ? LOCAL_INTERNAL_TOKEN : undefined);
   if (!token || request.headers.get('x-beats-internal-token') !== token) {
     return new Response(null, { status: 404 });
   }
@@ -23,6 +22,6 @@ function isTagRequest(value: unknown): value is { tags: string[] } {
     value !== null &&
     'tags' in value &&
     Array.isArray(value.tags) &&
-    value.tags.every((tag) => typeof tag === 'string' && tag.length <= 256)
+    value.tags.every(tag => typeof tag === 'string' && tag.length <= 256)
   );
 }
