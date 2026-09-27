@@ -1,6 +1,6 @@
-import { agentTest } from 'cafo/node-test';
+import { agentTest, baselineQualityChecks } from 'cafo/node-test';
 
-agentTest('native search submission', {
+agentTest('native search submission', [baselineQualityChecks()], {
   app: {
     path: new URL('../', import.meta.url),
     port: 3000,
