@@ -5,7 +5,7 @@ import type { Track } from '@/types/track';
 
 export function PlaylistTrackList({ playlistId, tracks }: { playlistId: string; tracks: Track[] }) {
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col gap-0.5">
       {tracks.map((track, i) => (
         <ViewTransition key={track.id}>
           <div className="flex items-center transition-opacity has-data-pending:opacity-30">

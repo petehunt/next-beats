@@ -74,6 +74,27 @@
   label {
     @apply text-gray mb-1.5 block text-xs font-medium tracking-wide;
   }
+
+  :where(a, button, summary, [role='button']) {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  :where(button, summary, [role='button']) {
+    user-select: none;
+  }
+}
+
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 1rem !important;
+  }
+
+  :where(a, button, summary, [role='button']):active {
+    opacity: 0.78;
+  }
 }
 
 .skeleton-animation {
@@ -86,6 +107,12 @@
   );
   background-size: 800px 100px;
   animation: wave-lines 2s infinite ease-out;
+}
+
+.skeleton-animation.skeleton-subtle {
+  background: rgba(150, 150, 150, 0.12);
+  background-size: unset;
+  animation: none;
 }
 
 .skeleton-animation:not([class*='rounded-']) {
@@ -101,24 +128,29 @@
   }
 }
 
-/* Play button reveal on card hover */
+/* hover-reveals on desktop; always shown on touch (else the first tap is eaten) */
 .card-play-btn {
-  opacity: 0;
-  transform: translateY(8px);
-  transition:
-    opacity 0.2s,
-    transform 0.2s;
-}
-.group:hover .card-play-btn {
   opacity: 1;
   transform: translateY(0);
+  transition: transform 0.2s;
+}
+@media (hover: hover) {
+  .card-play-btn {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  .group:hover .card-play-btn,
+  .card-play-btn[data-playing] {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* ---- View Transition Recipes ---- */
-
+/* View transition recipes */
 :root {
   --duration-exit: 150ms;
   --duration-enter: 210ms;
+  --duration-move: 250ms;
 }
 
 /* Fade */
@@ -160,6 +192,26 @@
   }
 }
 
+/* Slide (Horizontal) */
+::view-transition-old(.slide-out-left) {
+  animation:
+    var(--duration-exit) ease-out both fade reverse,
+    var(--duration-exit) ease-out both slide-x reverse;
+}
+::view-transition-new(.slide-in-left) {
+  animation:
+    var(--duration-enter) ease-in var(--duration-exit) both fade,
+    var(--duration-move) ease-in both slide-x;
+}
+@keyframes slide-x {
+  from {
+    transform: translateX(12px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(*),
@@ -170,22 +222,42 @@
   }
 }
 
+/* let cursor/clicks pass through the snapshot overlay to unnamed live content */
+::view-transition {
+  pointer-events: none;
+}
+
+/* No root cross-fade: `new(root)` is a live capture, so unnamed regions
+   (sidebar, chrome) keep rendering hover/active styles during transitions
+   instead of freezing behind a stale snapshot. Content still animates via
+   its classed ViewTransition groups. */
+::view-transition-old(root) {
+  display: none;
+}
+::view-transition-new(root) {
+  animation: none;
+}
+
 /* Exclude persistent elements from view transition animations */
 ::view-transition-group(mobile-nav),
-::view-transition-group(sidebar),
 ::view-transition-group(player-bar),
 ::view-transition-group(player-bar-desktop),
 ::view-transition-group(theme-toggle),
-::view-transition-group(demo-toolbar) {
+::view-transition-group(demo-toolbar),
+::view-transition-group(add-to-playlist-menu),
+::view-transition-group(modal),
+::view-transition-group(modal-backdrop),
+::view-transition-group(track-controls) {
   animation: none;
   z-index: 100;
 }
 
-::view-transition-old(sidebar) {
-  display: none;
+/* The `toaster` name lives on the always-mounted wrapper in components/toaster.tsx */
+::view-transition-group(toaster) {
+  animation: none;
+  z-index: 200;
 }
 
-::view-transition-new(sidebar),
 ::view-transition-old(mobile-nav),
 ::view-transition-new(mobile-nav),
 ::view-transition-old(player-bar),
@@ -194,14 +266,26 @@
 ::view-transition-new(player-bar-desktop),
 ::view-transition-old(theme-toggle),
 ::view-transition-new(theme-toggle),
-::view-transition-old(demo-toolbar),
-::view-transition-new(demo-toolbar) {
+::view-transition-new(demo-toolbar),
+::view-transition-old(add-to-playlist-menu),
+::view-transition-new(add-to-playlist-menu),
+::view-transition-old(modal),
+::view-transition-new(modal),
+::view-transition-new(modal-backdrop),
+::view-transition-old(track-controls),
+::view-transition-new(track-controls),
+::view-transition-old(toaster),
+::view-transition-new(toaster) {
   animation: none;
 }
 
-/* ── Client Boundary Visualizer ── */
+/* backdrop-blur elements: hide the old snapshot so two translucent layers don't stack */
+::view-transition-old(modal-backdrop),
+::view-transition-old(demo-toolbar) {
+  display: none;
+}
 
-/* ── Equalizer animation for now-playing indicator ── */
+/* Equalizer (now-playing indicator) */
 @keyframes eq1 {
   0%,
   100% {
@@ -228,4 +312,59 @@
   50% {
     height: 11px;
   }
+}
+
+/* Client Component boundaries (demo): toggled by the `boundary-mode` class on <html>.
+   In @layer base so Tailwind position/radius utilities win — the outline must never
+   move the element it marks (e.g. an `absolute` play button). */
+@layer base {
+  html.boundary-mode [data-component] {
+    position: relative;
+    border-radius: 6px;
+  }
+
+  /* Sonner portals its toasts outside the tree, so they are matched by their own attribute. */
+  html.boundary-mode :is([data-component], [data-sonner-toast])::before {
+    content: attr(data-component);
+    position: absolute;
+    top: 0;
+    left: 0.5rem;
+    transform: translateY(-100%);
+    z-index: 9999;
+    padding: 1px 6px;
+    border-radius: 4px 4px 0 0;
+    background: #4f6ef7;
+    color: #fff;
+    font-family: var(--font-geist-mono), monospace;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  html.boundary-mode [data-sonner-toast]::before {
+    content: 'Toast';
+  }
+}
+
+/* Unlayered: the outline has to beat `outline-none` utilities (Ariakit dialogs) and
+   Sonner's injected `[data-sonner-toast] { outline: none }`, which both win over @layer. */
+html.boundary-mode :is([data-component], [data-sonner-toast]) {
+  outline: 2px solid #4f6ef7;
+  outline-offset: -2px;
+}
+
+/* Album covers use a pre-generated image like a video poster. Swap it for the
+   live WebGPU canvas only after the first frame has finished rendering. */
+.album-art-shader {
+  visibility: hidden;
+}
+
+.album-art-shader[data-ready] {
+  visibility: visible;
+}
+
+.album-art-shader[data-ready] ~ .album-art-fallback {
+  visibility: hidden;
 }

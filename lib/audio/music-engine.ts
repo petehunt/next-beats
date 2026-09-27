@@ -8,6 +8,7 @@
  */
 
 import { genreConfigs, defaultGenreConfig } from './genre-configs';
+import { trackProfiles } from './track-profiles';
 import type { GenreConfig, DrumHit } from './genre-configs';
 
 let sharedCtx: AudioContext | null = null;
@@ -20,12 +21,31 @@ function getAudioContext(): AudioContext {
   return sharedCtx;
 }
 
+export function resetAudioContext(): AudioContext {
+  if (sharedCtx) {
+    sharedCtx.close().catch(() => {});
+  }
+  sharedCtx = new AudioContext();
+  return sharedCtx;
+}
+
 export function suspendAudio() {
   if (sharedCtx) sharedCtx.suspend();
 }
 
 export function resumeAudio() {
   if (sharedCtx) sharedCtx.resume();
+}
+
+/** Kill all audio by closing the context. Next getAudioContext() creates a fresh one. */
+export function killAudio() {
+  if (sharedCtx) {
+    try {
+      sharedCtx.destination.disconnect();
+    } catch {}
+    sharedCtx.close().catch(() => {});
+    sharedCtx = null;
+  }
 }
 
 /** Simple seeded PRNG for deterministic track variations */
@@ -49,6 +69,25 @@ function hashString(str: string): number {
 
 function pickSeeded<T>(arr: T[], rand: () => number): T {
   return arr[Math.floor(rand() * arr.length)];
+}
+
+function getTrackConfig(trackId: string, genre: string): GenreConfig {
+  const base = genreConfigs[genre] ?? defaultGenreConfig;
+  const profile = trackProfiles[trackId];
+  return profile ? { ...base, ...profile } : base;
+}
+
+function getBpmForConfig(config: GenreConfig, rand: () => number): number {
+  // Tempo: ±5% variation (subtle, keeps the groove tight)
+  const tempoMult = 0.95 + rand() * 0.1;
+  return Math.round(config.bpm * tempoMult);
+}
+
+export function getSecondsPerBar(trackId: string, genre: string): number {
+  const config = getTrackConfig(trackId, genre);
+  const profileRand = seededRandom(hashString(trackId));
+  const bpm = getBpmForConfig(config, profileRand);
+  return (60 / bpm) * 4;
 }
 
 /** Create a convolver reverb node */
@@ -147,9 +186,9 @@ function scheduleDrum(ctx: AudioContext, dest: AudioNode, hit: DrumHit, time: nu
 }
 
 export type ScheduledNodes = {
-  /** All OscillatorNodes/BufferSourceNodes scheduled (for cleanup) */
-  stopAll: () => void;
+  stopAll: (immediate?: boolean) => void;
   masterGain: GainNode;
+  kickTimes: number[];
 };
 
 /**
@@ -171,16 +210,13 @@ export function scheduleBar(
   startTime: number,
   volume: number,
 ): ScheduledNodes {
-  const config = genreConfigs[genre] ?? defaultGenreConfig;
+  const config = getTrackConfig(trackId, genre);
   const ctx = getAudioContext();
 
   // --- Per-track seed profile (computed once, deterministic per trackId) ---
   const trackHash = hashString(trackId);
   const profileRand = seededRandom(trackHash);
-
-  // Tempo: ±5% variation (subtle, keeps the groove tight)
-  const tempoMult = 0.95 + profileRand() * 0.1;
-  const bpm = Math.round(config.bpm * tempoMult);
+  const bpm = getBpmForConfig(config, profileRand);
 
   // Chord rotation: start at a different point in the progression
   const chordOffset = Math.floor(profileRand() * config.chords.length);
@@ -212,6 +248,7 @@ export function scheduleBar(
   const stepsPerBar = 16;
   const secPerStep = 60 / bpm / 4;
   const nodesToStop: { stop: (t?: number) => void }[] = [];
+  const kickTimes: number[] = [];
 
   const masterGain = ctx.createGain();
   masterGain.gain.value = (volume / 100) * 0.15;
@@ -367,24 +404,36 @@ export function scheduleBar(
         if ((isInPattern && !drop) || addGhost) {
           const humanize = (drumRand() - 0.5) * 0.01;
           const ghostVol = addGhost ? (volume / 100) * 0.5 : volume / 100;
-          scheduleDrum(ctx, dryGain, hit, t + humanize, ghostVol);
+          const hitTime = t + humanize;
+          scheduleDrum(ctx, dryGain, hit, hitTime, ghostVol);
+          if (hit === 'kick') kickTimes.push(hitTime);
         }
       }
     }
   }
 
   return {
-    stopAll: () => {
-      const now = ctx.currentTime;
-      masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
-      setTimeout(() => {
+    kickTimes,
+    stopAll: (immediate = false) => {
+      if (immediate) {
         nodesToStop.forEach(n => {
           try {
             n.stop();
           } catch {}
         });
         masterGain.disconnect();
-      }, 400);
+      } else {
+        const now = ctx.currentTime;
+        masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+        setTimeout(() => {
+          nodesToStop.forEach(n => {
+            try {
+              n.stop();
+            } catch {}
+          });
+          masterGain.disconnect();
+        }, 400);
+      }
     },
     masterGain,
   };

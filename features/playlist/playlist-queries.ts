@@ -1,38 +1,33 @@
 import 'server-only';
 
-import { cacheLife, cacheTag } from 'next/cache';
+import { cacheTag } from 'next/cache';
 import { notFound } from 'next/navigation';
-import { cache } from 'react';
+import { isSlowEnabled } from '@/components/demo/demo-slow';
+import { verifyAuth } from '@/features/user/user-queries';
 import { prisma } from '@/lib/db';
 import { delay } from '@/lib/utils';
-import { toTrack, type Track } from '@/types/track';
+import { toTrack } from '@/types/track';
 
-type PlaylistWithTracks = {
-  id: string;
-  name: string;
-  description: string;
-  coverColor: string;
-  trackCount: number;
-  tracks: Track[];
-};
+export async function getPlaylists() {
+  const userId = await verifyAuth();
+  return getPlaylistsForUser(userId, await isSlowEnabled());
+}
 
-export type PlaylistSummary = {
-  id: string;
-  name: string;
-  description: string;
-  coverColor: string;
-  trackCount: number;
-};
-
-export const getPlaylists = cache(async (): Promise<PlaylistSummary[]> => {
+async function getPlaylistsForUser(userId: string, slow: boolean) {
   'use cache';
-  cacheTag('playlists');
-  cacheLife('seconds');
+  cacheTag(`playlists:${userId}`);
 
-  await delay(1000);
+  await delay(500, slow);
   const rows = await prisma.playlist.findMany({
-    include: { _count: { select: { tracks: true } } },
+    include: {
+      _count: { select: { tracks: true } },
+      tracks: {
+        include: { track: true },
+        orderBy: { position: 'asc' },
+      },
+    },
     orderBy: { createdAt: 'desc' },
+    where: { OR: [{ userId }, { userId: null }] },
   });
   return rows.map(r => ({
     coverColor: r.coverColor,
@@ -40,23 +35,62 @@ export const getPlaylists = cache(async (): Promise<PlaylistSummary[]> => {
     id: r.id,
     name: r.name,
     trackCount: r._count.tracks,
+    tracks: r.tracks.map(pt => toTrack(pt.track)),
   }));
-});
+}
 
-export const getPlaylist = cache(async (id: string): Promise<PlaylistWithTracks> => {
+export async function searchPlaylists(query: string) {
+  const userId = await verifyAuth();
+  return searchPlaylistsForUser(userId, query, await isSlowEnabled());
+}
+
+async function searchPlaylistsForUser(userId: string, query: string, slow: boolean) {
   'use cache';
-  cacheTag('playlists', `playlist-${id}`);
-  cacheLife('seconds');
+  cacheTag(`playlists:${userId}`);
 
-  await delay(600);
-  const row = await prisma.playlist.findUnique({
+  await delay(400, slow);
+  const rows = await prisma.playlist.findMany({
+    include: {
+      _count: { select: { tracks: true } },
+      tracks: {
+        include: { track: true },
+        orderBy: { position: 'asc' },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    where: {
+      OR: [{ userId }, { userId: null }],
+      name: { contains: query, mode: 'insensitive' },
+    },
+  });
+  return rows.map(r => ({
+    coverColor: r.coverColor,
+    description: r.description,
+    id: r.id,
+    name: r.name,
+    trackCount: r._count.tracks,
+    tracks: r.tracks.map(pt => toTrack(pt.track)),
+  }));
+}
+
+export async function getPlaylist(id: string) {
+  const userId = await verifyAuth();
+  return getPlaylistForUser(id, userId, await isSlowEnabled());
+}
+
+async function getPlaylistForUser(id: string, userId: string, slow: boolean) {
+  'use cache';
+  cacheTag(`playlist-${id}`);
+
+  await delay(500, slow);
+  const row = await prisma.playlist.findFirst({
     include: {
       tracks: {
         include: { track: true },
         orderBy: { position: 'asc' },
       },
     },
-    where: { id },
+    where: { OR: [{ userId }, { userId: null }], id },
   });
   if (!row) notFound();
   return {
@@ -67,18 +101,21 @@ export const getPlaylist = cache(async (id: string): Promise<PlaylistWithTracks>
     trackCount: row.tracks.length,
     tracks: row.tracks.map(pt => toTrack(pt.track)),
   };
-});
+}
 
-export type PlaylistMenuItem = { label: string; value: string; active: boolean };
+export async function getPlaylistMenuItems(trackId: string) {
+  const userId = await verifyAuth();
+  return getPlaylistMenuItemsForUser(trackId, userId);
+}
 
-export const getPlaylistMenuItems = cache(async (trackId: string): Promise<PlaylistMenuItem[]> => {
+async function getPlaylistMenuItemsForUser(trackId: string, userId: string) {
   'use cache';
-  cacheTag('playlists');
-  cacheLife('seconds');
+  cacheTag(`playlists:${userId}`);
 
   const playlists = await prisma.playlist.findMany({
     include: { _count: { select: { tracks: true } } },
     orderBy: { createdAt: 'desc' },
+    where: { OR: [{ userId }, { userId: null }] },
   });
   if (playlists.length === 0) return [];
 
@@ -87,5 +124,5 @@ export const getPlaylistMenuItems = cache(async (trackId: string): Promise<Playl
     where: { playlistId: { in: playlists.map(p => p.id) }, trackId },
   });
   const addedSet = new Set(existing.map(e => e.playlistId));
-  return playlists.map(p => ({ label: p.name, value: p.id, active: addedSet.has(p.id) }));
-});
+  return playlists.map(p => ({ active: addedSet.has(p.id), label: p.name, value: p.id }));
+}

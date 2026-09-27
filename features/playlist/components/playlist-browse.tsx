@@ -1,20 +1,13 @@
 import { EmptyState } from '@/components/ui/empty-state';
-import { PlaylistList, PlaylistListSkeleton } from '@/features/playlist/components/playlist-card';
+import { PlaylistList } from '@/features/playlist/components/playlist-card';
 import { getPlaylists } from '@/features/playlist/playlist-queries';
 
-export async function PlaylistBrowse() {
+export async function PlaylistBrowse({ excludeId, animateItems }: { excludeId?: string; animateItems?: boolean } = {}) {
   const playlists = await getPlaylists();
-  if (playlists.length === 0) {
+  const filtered = excludeId ? playlists.filter(p => p.id !== excludeId) : playlists;
+  if (filtered.length === 0) {
+    if (excludeId) return null;
     return <EmptyState title="No playlists" body="Create your first playlist." />;
   }
-  return <PlaylistList playlists={playlists} />;
+  return <PlaylistList playlists={filtered} animateItems={animateItems} />;
 }
-
-export async function OtherPlaylists({ excludeId }: { excludeId: string }) {
-  const playlists = await getPlaylists();
-  const filtered = playlists.filter(p => p.id !== excludeId);
-  if (filtered.length === 0) return null;
-  return <PlaylistList playlists={filtered} />;
-}
-
-export { PlaylistListSkeleton as PlaylistBrowseSkeleton } from '@/features/playlist/components/playlist-card';

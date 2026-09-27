@@ -16,10 +16,20 @@ export default function Icon() {
         width: '100%',
       }}
     >
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M9 18V5l12-2v13" stroke="#4f6ef7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="6" cy="18" r="3" fill="#4f6ef7" />
-        <circle cx="18" cy="16" r="3" fill="#4f6ef7" />
+      <svg
+        width="28"
+        height="28"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#4f6ef7"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path d="M9 18V5l12-2v13" />
+        <circle cx="6" cy="18" r="3" />
+        <circle cx="18" cy="16" r="3" />
       </svg>
     </div>,
     size,

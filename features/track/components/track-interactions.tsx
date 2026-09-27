@@ -1,9 +1,11 @@
 'use client';
 
 import { Heart, Play } from 'lucide-react';
-import Link from 'next/link';
 import { useOptimistic, useTransition } from 'react';
-import { toggleFavorite, incrementPlayCount } from '@/features/track/track-actions';
+import { Boundary } from '@/components/demo/boundary';
+import { Equalizer } from '@/components/ui/equalizer';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
+import { toggleFavorite } from '@/features/track/track-actions';
 import { cn } from '@/lib/utils';
 import { usePlayer } from '@/providers/player-provider';
 import type { Track } from '@/types/track';
@@ -11,7 +13,6 @@ import type { Route } from 'next';
 
 export function TrackPlayRow({ track, queue, children }: { track: Track; queue?: Track[]; children: React.ReactNode }) {
   const player = usePlayer();
-  const [, startTransition] = useTransition();
   const isThisPlaying = player.isPlaying && player.track?.id === track.id;
   const isThisTrack = player.track?.id === track.id;
 
@@ -22,34 +23,30 @@ export function TrackPlayRow({ track, queue, children }: { track: Track; queue?:
       player.resume();
     } else {
       player.play(track, queue);
-      startTransition(async () => {
-        await incrementPlayCount(track.id);
-      });
     }
   }
 
   return (
-    <article
-      role="button"
-      tabIndex={0}
-      onClick={handleClick}
-      data-client="TrackPlayRow"
-      data-playing={isThisPlaying || undefined}
-      data-current={isThisTrack || undefined}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleClick();
-        }
-      }}
-      aria-label={isThisPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
-      className={cn(
-        'group/track cursor-pointer rounded-md transition-colors',
-        isThisTrack ? 'bg-card/40 dark:bg-card-dark/40' : 'hover:bg-card/60 dark:hover:bg-card-dark/60',
-      )}
-    >
-      {children}
-    </article>
+    <Boundary label="TrackPlayRow">
+      <article
+        role="button"
+        tabIndex={0}
+        onClick={handleClick}
+        onKeyDown={e => {
+          if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+            e.preventDefault();
+            handleClick();
+          }
+        }}
+        aria-label={isThisPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
+        className={cn(
+          'group/track cursor-pointer rounded-md transition-colors',
+          isThisTrack ? 'bg-card/40 dark:bg-card-dark/40' : 'hover:bg-card/60 dark:hover:bg-card-dark/60',
+        )}
+      >
+        {children}
+      </article>
+    </Boundary>
   );
 }
 
@@ -63,7 +60,7 @@ export function TrackLink({
   className?: string;
 }) {
   return (
-    <Link
+    <PrefetchLink
       href={href as Route}
       onClick={e => e.stopPropagation()}
       className={cn(
@@ -72,7 +69,7 @@ export function TrackLink({
       )}
     >
       {children}
-    </Link>
+    </PrefetchLink>
   );
 }
 
@@ -94,6 +91,29 @@ export function NowPlayingTrackLink({
   );
 }
 
+export function NowPlayingTrackTitle({
+  trackId,
+  children,
+  className,
+}: {
+  trackId: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const player = usePlayer();
+  const isThisTrack = player.track?.id === trackId;
+  return (
+    <span
+      className={cn(
+        'truncate text-sm font-semibold',
+        isThisTrack ? 'text-accent' : (className ?? 'text-black dark:text-white'),
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function TrackIndexCell({ trackId, index }: { trackId: string; index?: number }) {
   const player = usePlayer();
   const isPlaying = player.isPlaying && player.track?.id === trackId;
@@ -102,11 +122,7 @@ export function TrackIndexCell({ trackId, index }: { trackId: string; index?: nu
   if (isPlaying) {
     return (
       <span className="flex w-5 items-center justify-center">
-        <span className="equalizer flex items-end gap-0.5">
-          <span className="bg-accent inline-block w-0.75 animate-[eq1_0.8s_ease-in-out_infinite] rounded-sm" />
-          <span className="bg-accent inline-block w-0.75 animate-[eq2_0.6s_ease-in-out_infinite_0.2s] rounded-sm" />
-          <span className="bg-accent inline-block w-0.75 animate-[eq3_0.7s_ease-in-out_infinite_0.1s] rounded-sm" />
-        </span>
+        <Equalizer size="sm" />
       </span>
     );
   }
@@ -123,14 +139,19 @@ export function TrackIndexCell({ trackId, index }: { trackId: string; index?: nu
     <span className="w-5 text-right">
       {index !== undefined ? (
         <>
-          <span className="text-muted font-mono text-xs group-hover/track:hidden">{index + 1}</span>
+          <span className="text-muted font-mono text-xs group-hover/track:hidden [@media(hover:none)]:hidden">
+            {index + 1}
+          </span>
           <Play
-            className="hidden h-3.5 w-3.5 text-black group-hover/track:inline dark:text-white"
+            className="hidden h-3.5 w-3.5 text-black group-hover/track:inline dark:text-white [@media(hover:none)]:inline"
             fill="currentColor"
           />
         </>
       ) : (
-        <Play className="hidden h-3.5 w-3.5 text-black group-hover/track:inline dark:text-white" fill="currentColor" />
+        <Play
+          className="hidden h-3.5 w-3.5 text-black group-hover/track:inline dark:text-white [@media(hover:none)]:inline"
+          fill="currentColor"
+        />
       )}
     </span>
   );
@@ -145,31 +166,36 @@ export function FavoriteButton({
   isFavorite: boolean;
   size?: 'sm' | 'lg';
 }) {
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [optimisticFavorite, setOptimisticFavorite] = useOptimistic(isFavorite);
+  const [removing, setRemoving] = useOptimistic(false);
 
   function handleToggle(e: React.MouseEvent) {
     e.stopPropagation();
+    const willRemove = optimisticFavorite;
     startTransition(async () => {
       setOptimisticFavorite(!optimisticFavorite);
+      if (willRemove) setRemoving(true);
       await toggleFavorite(trackId);
     });
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleToggle}
-      disabled={isPending}
-      data-client="FavoriteButton"
-      aria-label={optimisticFavorite ? 'Remove from favorites' : 'Add to favorites'}
-      className={cn(
-        'rounded-full transition-colors',
-        size === 'lg' ? 'p-1.5' : 'p-1.5',
-        optimisticFavorite ? 'text-accent hover:text-accent-hover' : 'text-gray hover:text-black dark:hover:text-white',
-      )}
-    >
-      <Heart className={cn(size === 'lg' ? 'h-5 w-5' : 'h-4 w-4', optimisticFavorite && 'fill-current')} />
-    </button>
+    <Boundary label="FavoriteButton">
+      <button
+        type="button"
+        onClick={handleToggle}
+        data-removing={removing || undefined}
+        aria-label={optimisticFavorite ? 'Remove from favorites' : 'Add to favorites'}
+        className={cn(
+          'rounded-full p-1.5 transition-colors',
+          optimisticFavorite
+            ? 'text-accent hover:text-accent-hover'
+            : 'text-gray hover:text-black dark:hover:text-white',
+        )}
+      >
+        <Heart className={cn(size === 'lg' ? 'h-5 w-5' : 'h-4 w-4', optimisticFavorite && 'fill-current')} />
+      </button>
+    </Boundary>
   );
 }

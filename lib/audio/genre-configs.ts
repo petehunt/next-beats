@@ -56,12 +56,8 @@ const cMinPent = [261.63, 311.13, 349.23, 392.0, 466.16, 523.25, 622.25];
 const gMinPent = [196.0, 233.08, 261.63, 293.66, 349.23, 392.0, 466.16];
 // A minor pentatonic
 const aMinPent = [220.0, 261.63, 293.66, 329.63, 392.0, 440.0, 523.25];
-// D minor scale
-const dMinScale = [293.66, 329.63, 349.23, 392.0, 440.0, 466.16, 523.25, 587.33];
 // F major pentatonic
 const fMajPent = [174.61, 196.0, 220.0, 261.63, 293.66, 349.23, 392.0];
-// Bb major scale (jazz)
-const bbMajScale = [233.08, 261.63, 293.66, 311.13, 349.23, 392.0, 440.0, 466.16];
 
 export const genreConfigs: Record<string, GenreConfig> = {
   electronic: {
@@ -192,24 +188,24 @@ export const genreConfigs: Record<string, GenreConfig> = {
     reverb: 0.3,
   },
 
-  rock: {
-    bpm: 135,
+  'lo-fi': {
+    bpm: 78,
     chords: [
-      [196.0, 246.94, 293.66], // G
-      [220.0, 277.18, 329.63], // A
-      [164.81, 207.65, 246.94], // E
-      [146.83, 185.0, 220.0], // D
+      [196.0, 246.94, 293.66, 369.99], // Gmaj7
+      [220.0, 261.63, 329.63, 392.0], // Am7
+      [174.61, 220.0, 261.63, 329.63], // Fmaj7
+      [261.63, 329.63, 392.0, 466.16], // Cmaj7
     ],
-    melodyNotes: dMinScale,
-    melodyRhythm: [0, 4, 8, 10, 12],
-    melodyWave: 'sawtooth',
-    melodyGain: 0.07,
-    bassPattern: [0, 0, 2, 3],
-    bassWave: 'sawtooth',
+    melodyNotes: fMajPent,
+    melodyRhythm: [0, 4, 8, 12],
+    melodyWave: 'triangle',
+    melodyGain: 0.08,
+    bassPattern: [0, 1, 2, 3],
+    bassWave: 'sine',
     bassGain: 0.1,
-    padWave: 'sawtooth',
-    padGain: 0.03,
-    padFilter: 1800,
+    padWave: 'triangle',
+    padGain: 0.04,
+    padFilter: 1600,
     arpeggiate: false,
     arpSpeed: 4,
     drums: {
@@ -217,43 +213,43 @@ export const genreConfigs: Record<string, GenreConfig> = {
       pattern: {
         kick: [0, 8],
         snare: [4, 12],
-        hihat: [0, 2, 4, 6, 8, 10, 12, 14],
+        hihat: [0, 4, 6, 8, 12, 14],
         clap: [],
       },
     },
-    reverb: 0.25,
+    reverb: 0.55,
   },
 
-  jazz: {
-    bpm: 100,
+  synthwave: {
+    bpm: 110,
     chords: [
-      [130.81, 164.81, 207.65, 246.94], // Cmaj7
-      [146.83, 185.0, 220.0, 277.18], // Dm7
-      [196.0, 246.94, 293.66, 369.99], // G7
-      [130.81, 164.81, 196.0, 246.94], // Cmaj7
+      [220.0, 261.63, 329.63], // Am
+      [174.61, 220.0, 261.63], // Fm
+      [261.63, 329.63, 392.0], // C
+      [196.0, 246.94, 293.66], // G
     ],
-    melodyNotes: bbMajScale,
-    melodyRhythm: [0, 3, 4, 7, 8, 11, 12],
-    melodyWave: 'sine',
-    melodyGain: 0.1,
-    bassPattern: [0, 1, 2, 1],
-    bassWave: 'triangle',
-    bassGain: 0.1,
-    padWave: 'sine',
+    melodyNotes: aMinPent,
+    melodyRhythm: [0, 2, 4, 8, 10, 12, 14],
+    melodyWave: 'sawtooth',
+    melodyGain: 0.07,
+    bassPattern: [0, 0, 2, 3],
+    bassWave: 'sawtooth',
+    bassGain: 0.12,
+    padWave: 'sawtooth',
     padGain: 0.04,
     padFilter: 2200,
-    arpeggiate: false,
-    arpSpeed: 3,
+    arpeggiate: true,
+    arpSpeed: 2,
     drums: {
       steps: 16,
       pattern: {
-        kick: [0, 10],
-        snare: [],
-        hihat: [0, 3, 4, 7, 8, 11, 12, 15],
+        kick: [0, 4, 8, 12],
+        snare: [4, 12],
+        hihat: [0, 2, 4, 6, 8, 10, 12, 14],
         clap: [4, 12],
       },
     },
-    reverb: 0.6,
+    reverb: 0.35,
   },
 };
 

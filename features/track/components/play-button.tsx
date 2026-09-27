@@ -1,13 +1,14 @@
 'use client';
 
-import { Pause, Play } from 'lucide-react';
-import { useTransition } from 'react';
-import { incrementPlayCount } from '@/features/track/track-actions';
+import { Play } from 'lucide-react';
+import { Boundary } from '@/components/demo/boundary';
+import { Equalizer } from '@/components/ui/equalizer';
 import { usePlayer } from '@/providers/player-provider';
 import type { Track } from '@/types/track';
 
 type Props = {
   track: Track;
+  queue?: Track[];
   className?: string;
   size?: 'sm' | 'md';
 };
@@ -22,8 +23,7 @@ const iconSizes = {
   sm: 'h-4 w-4',
 };
 
-export function PlayButton({ track, className, size = 'md' }: Props) {
-  const [, startTransition] = useTransition();
+export function PlayButton({ track, queue, className, size = 'md' }: Props) {
   const player = usePlayer();
   const isThisPlaying = player.isPlaying && player.track?.id === track.id;
 
@@ -35,26 +35,25 @@ export function PlayButton({ track, className, size = 'md' }: Props) {
     } else if (player.track?.id === track.id && !player.isPlaying) {
       player.resume();
     } else {
-      player.play(track);
-      startTransition(async () => {
-        await incrementPlayCount(track.id);
-      });
+      player.play(track, queue);
     }
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      data-client="PlayButton"
-      aria-label={isThisPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
-      className={`bg-accent flex items-center justify-center rounded-full text-white shadow-xl transition-transform hover:scale-105 ${sizes[size]} ${className ?? ''}`}
-    >
-      {isThisPlaying ? (
-        <Pause className={iconSizes[size]} fill="currentColor" />
-      ) : (
-        <Play className={`translate-x-[1px] ${iconSizes[size]}`} fill="currentColor" />
-      )}
-    </button>
+    <Boundary label="PlayButton">
+      <button
+        type="button"
+        onClick={handleClick}
+        data-playing={isThisPlaying || undefined}
+        aria-label={isThisPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
+        className={`z-30 flex items-center justify-center rounded-full bg-[#4f6ef7] text-white shadow-xl !transition-transform hover:scale-105 hover:bg-[#4f6ef7] ${sizes[size]} ${className ?? ''}`}
+      >
+        {isThisPlaying ? (
+          <Equalizer size={size === 'md' ? 'md' : 'sm'} color="bg-white" />
+        ) : (
+          <Play className={iconSizes[size]} fill="currentColor" />
+        )}
+      </button>
+    </Boundary>
   );
 }

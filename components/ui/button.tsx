@@ -2,6 +2,7 @@
 
 import { type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { useFormStatus } from 'react-dom';
+import { Boundary } from '@/components/demo/boundary';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 
@@ -43,15 +44,16 @@ export function Button({
   const isDisabled = disabled || (isSubmit && pending);
 
   return (
-    <button
-      type={type}
-      disabled={isDisabled}
-      data-client="Button"
-      className={cn(base, sizes[size], variants[variant], className)}
-      {...props}
-    >
-      {isSubmit && pending && <Spinner />}
-      {children}
-    </button>
+    <Boundary label="Button">
+      <button
+        type={type}
+        disabled={isDisabled}
+        className={cn(base, sizes[size], variants[variant], className)}
+        {...props}
+      >
+        {isSubmit && pending && <Spinner />}
+        {children}
+      </button>
+    </Boundary>
   );
 }

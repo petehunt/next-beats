@@ -1,4 +1,4 @@
-import type { Track as PrismaTrack } from '@/generated/prisma/client';
+import type { Track as PrismaTrack, UserFavorite, UserTrackPlay } from '@/generated/prisma/client';
 
 export type Track = {
   id: string;
@@ -10,10 +10,16 @@ export type Track = {
   coverColor: string;
   playCount: number;
   isFavorite: boolean;
+  lastPlayedAt: Date | null;
   createdAt: Date;
 };
 
-export function toTrack(row: PrismaTrack): Track {
+type UserData = {
+  favorites?: UserFavorite[];
+  trackPlays?: UserTrackPlay[];
+};
+
+export function toTrack(row: PrismaTrack, userData?: UserData): Track {
   return {
     album: row.album,
     artist: row.artist,
@@ -22,7 +28,8 @@ export function toTrack(row: PrismaTrack): Track {
     duration: row.duration,
     genre: row.genre,
     id: row.id,
-    isFavorite: row.isFavorite,
+    isFavorite: userData?.favorites ? userData.favorites.length > 0 : false,
+    lastPlayedAt: userData?.trackPlays?.[0]?.lastPlayedAt ?? null,
     playCount: row.playCount,
     title: row.title,
   };
